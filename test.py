@@ -318,7 +318,6 @@ def main(env_name, num_episodes, gamma, lam, kl_targ, batch_size, TestNote):
         val_func.fit(observes, disc_sum_rew, logger)  # update value function
 
 
-
         logger.write(display=True)  # write logger results to file and stdout
         if killer.kill_now:
             if input('Terminate training (y/[n])? ') == 'y':

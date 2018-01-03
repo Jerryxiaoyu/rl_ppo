@@ -317,7 +317,8 @@ def main(env_name, num_episodes, gamma, lam, kl_targ, batch_size, TestNote):
         policy.update(observes, actions, advantages, logger)  # update policy
         val_func.fit(observes, disc_sum_rew, logger)  # update value function
 
-        if episode % batch_size== 0:
+        # save models
+        if episode % (num_episodes/10)== 0:
             policy.save_model(env_name + "-" + str(episode))
 
 
