@@ -41,6 +41,7 @@ class Policy(object):
             self._sample()
             self._loss_train_op()
             self.init = tf.global_variables_initializer()
+            self.saver = tf.train.Saver(max_to_keep=10)  # save model
 
     def _placeholders(self):
         """ Input placeholders"""
@@ -93,7 +94,7 @@ class Policy(object):
         print('Policy Params -- h1: {}, h2: {}, h3: {}, lr: {:.3g}, logvar_speed: {}'
               .format(hid1_size, hid2_size, hid3_size, self.lr, logvar_speed))
 
-        self.saver = tf.train.Saver(max_to_keep=2)    #save model
+
 
     def _logprob(self):
         """ Calculate log probabilities of a batch of observations & actions
@@ -212,8 +213,8 @@ class Policy(object):
         """ Close TensorFlow session """
         self.sess.close()
 
-    def save_model(self, model_name):
-        self.saver.save(self.sess, "checkpoint/" + model_name + ".ckpt")
+    def save_model(self, model_name, directory):
+        self.saver.save(self.sess, directory + "/" + model_name + ".ckpt")  # "checkpoint/" + model_name + ".ckpt"
 
     def load_model(self, model_name):
         try:

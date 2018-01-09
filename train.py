@@ -265,7 +265,8 @@ def log_batch_stats(observes, actions, advantages, disc_sum_rew, logger, episode
 
 
 
-#./train.py My3-v1 -n 10000 -txt 'A003'
+#python ./train.py My3LineDirect-v1 -n 20000 -txt 'A003-pi3-4'
+#python ./train.py My3-v1 -n 10000 -txt 'A003'
 #./train.py Ant-v1 -n 100000
 #./train.py Humanoid-v1 -n 200000
 #./train.py Swimmer-v1 -n 2500 -b 5
@@ -293,8 +294,8 @@ def main(env_name, num_episodes, gamma, lam, kl_targ, batch_size, TestNote):
     now = datetime.now().strftime("%b-%d_%H:%M:%S")  # create unique directories  格林尼治时间!!!  utcnow改为now
     testname = now+'-'+TestNote
     logger = Logger(logname=env_name, now=testname)
-    aigym_path = os.path.join('log-files', env_name, testname)
-    env = wrappers.Monitor(env, aigym_path, force=True)
+    monitor_path = os.path.join('log-files', env_name, testname, 'monitor')
+    env = wrappers.Monitor(env, monitor_path, force=True)
     scaler = Scaler(obs_dim)
     val_func = NNValueFunction(obs_dim)
     policy = Policy(obs_dim, act_dim, kl_targ)
@@ -319,8 +320,9 @@ def main(env_name, num_episodes, gamma, lam, kl_targ, batch_size, TestNote):
         val_func.fit(observes, disc_sum_rew, logger)  # update value function
 
         # save models
-        if episode % (num_episodes/10)== 0:
-            policy.save_model(env_name + "-" + str(episode))
+        if not episode % (num_episodes / 10):
+            policy_save_path = os.path.join('log-files', env_name, testname, 'checkpoint')
+            policy.save_model(env_name + "-" + str(episode), policy_save_path)
 
 
         logger.write(display=True)  # write logger results to file and stdout
