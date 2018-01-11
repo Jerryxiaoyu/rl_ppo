@@ -339,6 +339,7 @@ def main(env_name, num_episodes, gamma, lam, kl_targ, batch_size, TestNote):
     killer = GracefulKiller()
     env, obs_dim, act_dim = init_gym(env_name)
     obs_dim += 1  # add 1 to obs dimension for time step feature (see run_episode())
+    env.set_goals(0)
 
     now = datetime.now().strftime("%b-%d_%H:%M:%S")  # create unique directories  格林尼治时间!!!  utcnow改为now
     testname = now+'-'+TestNote
@@ -349,7 +350,7 @@ def main(env_name, num_episodes, gamma, lam, kl_targ, batch_size, TestNote):
     val_func = NNValueFunction(obs_dim)
     policy = Policy(obs_dim, act_dim, kl_targ)
     # run a few episodes of untrained policy to initialize scaler:
-    policy.load_model('log-files/My3LineDirect-v1/Jan-08_14:56:57-A003-pi/4/checkpoint/My3LineDirect-v1-20000.ckpt')
+    policy.load_model('/home/drl/PycharmProjects/warker_test/log-files/My3LineDirect-v1/Jan-10_07:51:34-A003-SpecGoal-itr15000-g0ExpNo5/checkpoint/My3LineDirect-v1-15000.ckpt')
     episode = 0
 
     observes, actions, rewards, unscaled_obs, states_x,states_y= rollout(env, policy, scaler, max_path_length=batch_size,animate=True)

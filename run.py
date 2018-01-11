@@ -9,8 +9,8 @@ def sample_goals(num_goals):
 
 
 
-itr =20
-num_exp = 1
+itr =15000
+num_exp = 8
 goals = sample_goals(num_exp)
 print(goals)
 
@@ -22,5 +22,5 @@ Param_const = 'itr'+str(itr)
 for i in range(num_exp):
     TXTnote = Model_Name+'-'+Scripts_Name+'-'+Param_const+'-'+'g'+str(int(goals[i]))+'ExpNo'+str(i+1)
 
-    print('python ./train_SpecGoal.py My3LineDirect-v1 -n '+ str(itr) +' -go '+str(goals[i])+' -txt '+TXTnote)
-   # os.system('python ./train_SpecGoal.py My3LineDirect-v1 -n '+ str(itr) +' -go '+str(goals[i])+' -txt '+TXTnote)
+   # print('python ./train_SpecGoal.py My3LineDirect-v1 -n '+ str(itr) +' -go '+str(goals[i])+' -txt '+TXTnote)
+    os.system('python ./train_SpecGoal.py My3LineDirect-v1 -n '+ str(itr) +' -go '+str(goals[i])+' -txt '+TXTnote)
