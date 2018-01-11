@@ -1,4 +1,5 @@
 #! /usr/bin/env python3
+# -*- coding: utf-8 -*-
 """
 PPO: Proximal Policy Optimization
 
@@ -300,7 +301,7 @@ def main(env_name, num_episodes, gamma, lam, kl_targ, batch_size, goal,TestNote)
 
     killer = GracefulKiller()
     env, obs_dim, act_dim = init_gym(env_name)
-    env.set_goals(goal*pi/180.0)  #角度要换成弧度
+    env.set_goals(goal * pi/180.0)  #角度要换成弧度
 
 
 

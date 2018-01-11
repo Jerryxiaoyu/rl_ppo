@@ -353,18 +353,16 @@ def main(env_name, num_episodes, gamma, lam, kl_targ, batch_size, TestNote):
     policy.load_model('/home/drl/PycharmProjects/warker_test/log-files/My3LineDirect-v1/Jan-10_07:51:34-A003-SpecGoal-itr15000-g0ExpNo5/checkpoint/My3LineDirect-v1-15000.ckpt')
     episode = 0
 
-    observes, actions, rewards, unscaled_obs, states_x,states_y= rollout(env, policy, scaler, max_path_length=batch_size,animate=True)
+    observes, actions, rewards, unscaled_obs, states_x, states_y= rollout(env, policy, scaler, max_path_length=batch_size,animate=True)
 
+    data = np.concatenate((observes, actions, rewards, states_x , states_y), axis=1)
+    trajectory = {}
+    for j in range(data.shape[0]):
+        for i in range(data.shape[1]):
+            trajectory[i] = data[j][i]
+        logger.log(trajectory)
+        logger.write(display=False)
 
-    logger.log({'obs': observes,
-                'action': actions,
-                '_MeanReward': rewards,
-                'states_x':states_x,
-                'states_y': states_y,
-                '_Episode': episode
-                })
-
-    logger.write(display=True)  # write logger results to file and stdout
 
     logger.close()
     policy.close_sess()
