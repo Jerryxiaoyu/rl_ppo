@@ -37,7 +37,7 @@ import os
 import argparse
 import signal
 import time
-
+from math import pi
 
 class GracefulKiller:
     """ Gracefully exit program on CTRL-C """
@@ -113,7 +113,7 @@ def run_episode(env, policy, scaler, animate=False):
             np.array(rewards, dtype=np.float64), np.concatenate(unscaled_obs))
 
 
-def run_policy(env, policy, scaler, logger, episodes,animated=False):
+def run_policy(env, policy, scaler, logger, episodes):
     """ Run policy and collect data for a minimum of min_steps and min_episodes
 
     Args:
@@ -133,7 +133,7 @@ def run_policy(env, policy, scaler, logger, episodes,animated=False):
     total_steps = 0
     trajectories = []
     for e in range(episodes):
-        observes, actions, rewards, unscaled_obs = run_episode(env, policy, scaler,animated)  #,True render
+        observes, actions, rewards, unscaled_obs = run_episode(env, policy, scaler,False)  #,True render
         total_steps += observes.shape[0]
         trajectory = {'observes': observes,
                       'actions': actions,
@@ -147,54 +147,6 @@ def run_policy(env, policy, scaler, logger, episodes,animated=False):
 
     return trajectories
 
-def rollout(env, policy, scaler,max_path_length, animate=False):
-    """ Run single episode with option to animate
-
-    Args:
-        env: ai gym environment
-        policy: policy object with sample() method
-        scaler: scaler object, used to scale/offset each observation dimension
-            to a similar range
-        animate: boolean, True uses env.render() method to animate episode
-
-    Returns: 4-tuple of NumPy arrays
-        observes: shape = (episode len, obs_dim)
-        actions: shape = (episode len, act_dim)
-        rewards: shape = (episode len,)
-        unscaled_obs: useful for training scaler, shape = (episode len, obs_dim)
-    """
-    obs = env.reset()
-    observes, actions, rewards, unscaled_obs, states_x, states_y = [], [], [], [],[],[]
-    done = False
-    step = 0.0
-    scale, offset = scaler.get()
-    scale[-1] = 1.0  # don't scale time step feature
-    offset[-1] = 0.0  # don't offset time step feature
-    path_length = 0
-
-    while path_length < max_path_length:
-        path_length += 1
-        if animate:
-            env.render()
-        obs = obs.astype(np.float64).reshape((1, -1))
-        obs = np.append(obs, [[step]], axis=1)  # add time step feature
-        unscaled_obs.append(obs)
-        obs = (obs - offset) * scale  # center and scale observations
-        observes.append(obs)
-        action = policy.sample(obs).reshape((1, -1)).astype(np.float64)
-        actions.append(action)
-        obs, reward, done, info = env.step(action)
-
-        states_x = np.append(states_x, info['state'][0])  # 提取x位置,扩展向量
-        states_y = np.append(states_y, info['state'][1])
-
-        if not isinstance(reward, float):
-            reward = np.asscalar(reward)
-        rewards.append(reward)
-        step += 1e-3  # increment time step feature
-
-    return (np.concatenate(observes), np.concatenate(actions),
-            np.array(rewards, dtype=np.float64), np.concatenate(unscaled_obs), np.array(states_x, dtype=np.float64),np.array(states_y, dtype=np.float64))
 
 def discount(x, gamma):
     """ Calculate discounted forward sum of a sequence at each point """
@@ -311,16 +263,27 @@ def log_batch_stats(observes, actions, advantages, disc_sum_rew, logger, episode
                 '_Episode': episode
                 })
 
+def log_info_write(path,str ):
+    name = 'info.txt'
+    f = open(path+'/'+name, 'a')
+    f.write(str)
+    f.write('\n')
+    f.close()
 
 
-#python ./test.py My3LineDirect-v1 -b 200 -txt 'A003'
-#python ./test.py My3-v1 -b 2000 -txt 'A003'
+
+
+
+
+#python ./train.py My3LineDirect-v1 -n 20000 -go pi/4 -txt 'A003-pi3-4'
+#python ./train.py My3-v1 -n 10000 -txt 'A003'
 #./train.py Ant-v1 -n 100000
 #./train.py Humanoid-v1 -n 200000
 #./train.py Swimmer-v1 -n 2500 -b 5
 #./train.py HalfCheetah-v1 -n 3000 -b 5
 
-def main(env_name, num_episodes, gamma, lam, kl_targ, batch_size, TestNote):
+
+def main(env_name, num_episodes, gamma, lam, kl_targ, batch_size, goal,TestNote):
     """ Main training loop
 
     Args:
@@ -331,38 +294,71 @@ def main(env_name, num_episodes, gamma, lam, kl_targ, batch_size, TestNote):
         kl_targ: D_KL target for policy update [D_KL(pi_old || pi_new)
         batch_size: number of episodes per policy training batch
     """
-    print('Testing Period:\n')
+    print('Start time:\n')
     print(time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time())))
-
 
 
     killer = GracefulKiller()
     env, obs_dim, act_dim = init_gym(env_name)
-    obs_dim += 1  # add 1 to obs dimension for time step feature (see run_episode())
-    env.set_goals(0)
+    env.set_goals(goal * pi / 180.0)  # 角度要换成弧度
 
+
+
+    obs_dim += 1  # add 1 to obs dimension for time step feature (see run_episode())
     now = datetime.now().strftime("%b-%d_%H:%M:%S")  # create unique directories  格林尼治时间!!!  utcnow改为now
     testname = now+'-'+TestNote
     logger = Logger(logname=env_name, now=testname)
-    aigym_path = os.path.join('log-Test-files', env_name, testname)
-    env = wrappers.Monitor(env, aigym_path, force=True)
+    logger2 = Logger(logname=env_name, now=testname+'--bak2')
+    info_path = os.path.join('log-files', env_name, testname)
+
+    monitor_path = os.path.join('log-files', env_name, testname, 'monitor')
+    env = wrappers.Monitor(env, monitor_path, force=True)
     scaler = Scaler(obs_dim)
     val_func = NNValueFunction(obs_dim)
     policy = Policy(obs_dim, act_dim, kl_targ)
-    # run a few episodes of untrained policy to initialize scaler:
     policy.load_model('/home/drl/PycharmProjects/warker_test/log-files/My3LineDirect-v1/Jan-10_07:51:34-A003-SpecGoal-itr15000-g0ExpNo5/checkpoint/My3LineDirect-v1-15000.ckpt')
+
+    #输出开始信息
+    print('Start time:\n')
+    time_tmp = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time()))
+    print(time_tmp)
+    log_info_write(info_path, 'Env: ' + str(env_name) + ' Num_episodes=' + str(num_episodes) + ' gamma=' + str(
+        gamma) + ' lam=' + str(lam) + ' kl_targ=' + str(kl_targ) + '\n'
+                   + 'batch_size=' + str(batch_size) + ' goal=' + str(goal) + '\n'
+                   + TestNote + '\n\n'
+                   + 'Start time:\n'
+                   + time_tmp + '\n'
+                   )
+
+    # run a few episodes of untrained policy to initialize scaler:
+    run_policy(env, policy, scaler, logger, episodes=5)
     episode = 0
 
-    observes, actions, rewards, unscaled_obs, states_x, states_y= rollout(env, policy, scaler, max_path_length=batch_size,animate=True)
-    tmp=np.vstack((rewards,states_x,states_y))
-    tmp1=np.transpose(tmp)
-    data = np.concatenate((observes, actions, tmp1),axis=1)
-    trajectory = {}
-    for j in range(data.shape[0]):
-        for i in range(data.shape[1]):
-            trajectory[i] = data[j][i]
-        logger.log(trajectory)
-        logger.write(display=False)
+
+    while episode < num_episodes:
+        trajectories = run_policy(env, policy, scaler, logger, episodes=batch_size)
+        episode += len(trajectories)
+        add_value(trajectories, val_func)  # add estimated values to episodes
+        add_disc_sum_rew(trajectories, gamma)  # calculated discounted sum of Rs
+        add_gae(trajectories, gamma, lam)  # calculate advantage
+        # concatenate all episodes into single NumPy arrays
+        observes, actions, advantages, disc_sum_rew = build_train_set(trajectories)
+        # add various stats to training log:
+        log_batch_stats(observes, actions, advantages, disc_sum_rew, logger, episode)
+        policy.update(observes, actions, advantages, logger)  # update policy
+        val_func.fit(observes, disc_sum_rew, logger)  # update value function
+
+        # save models
+        if not episode % (num_episodes / 10):
+            policy_save_path = os.path.join('log-files', env_name, testname, 'checkpoint')
+            policy.save_model(env_name + "-" + str(episode), policy_save_path)
+
+
+        logger.write(display=True)  # write logger results to file and stdout
+        if killer.kill_now:
+            if input('Terminate training (y/[n])? ') == 'y':
+                break
+            killer.kill_now = False
 
 
     logger.close()
@@ -370,9 +366,14 @@ def main(env_name, num_episodes, gamma, lam, kl_targ, batch_size, TestNote):
     val_func.close_sess()
 
     print('End time:\n')
-    print(time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time())))
+    time_tmp=time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time()))
+    print(time_tmp)
+    log_info_write(info_path,
 
-'''''
+                    'End time:\n'
+                   + time_tmp + '\n'
+                   )
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=('Train policy on OpenAI Gym environment '
                                                   'using Proximal Policy Optimizer'))
@@ -390,17 +391,11 @@ if __name__ == "__main__":
     parser.add_argument('-txt', '--TestNote', type=str,
                         help='Notes of the experiments',
                         default='0')
-
+    parser.add_argument('-go', '--goal', type=float,
+                        help='pam. of the goal',
+                        default=0)
     args = parser.parse_args()
     main(**vars(args))
 
 
-    while episode < num_episodes:
-        print('Episode:',episode)
 
-
-        trajectories = run_policy(env, policy, scaler, logger, episodes=batch_size)
-        episode += len(trajectories)
-        print('-------------------------------------')
-'''''
-main('My3LineDirect-v1', 1000, 0.995, 0.98, 0.003, 200, 'A003-test')
