@@ -353,18 +353,17 @@ def main(env_name, num_episodes, gamma, lam, kl_targ, batch_size, TestNote):
     policy.load_model('/home/drl/PycharmProjects/warker_test/log-files/My3LineDirect-v1/Jan-10_07:51:34-A003-SpecGoal-itr15000-g0ExpNo5/checkpoint/My3LineDirect-v1-15000.ckpt')
     episode = 0
 
-    observes, actions, rewards, unscaled_obs, states_x,states_y= rollout(env, policy, scaler, max_path_length=batch_size,animate=True)
+    observes, actions, rewards, unscaled_obs, states_x, states_y= rollout(env, policy, scaler, max_path_length=batch_size,animate=True)
+    tmp=np.vstack((rewards,states_x,states_y))
+    tmp1=np.transpose(tmp)
+    data = np.concatenate((observes, actions, tmp1),axis=1)
+    trajectory = {}
+    for j in range(data.shape[0]):
+        for i in range(data.shape[1]):
+            trajectory[i] = data[j][i]
+        logger.log(trajectory)
+        logger.write(display=False)
 
-
-    logger.log({'obs': observes,
-                'action': actions,
-                '_MeanReward': rewards,
-                'states_x':states_x,
-                'states_y': states_y,
-                '_Episode': episode
-                })
-
-    logger.write(display=True)  # write logger results to file and stdout
 
     logger.close()
     policy.close_sess()
@@ -373,7 +372,7 @@ def main(env_name, num_episodes, gamma, lam, kl_targ, batch_size, TestNote):
     print('End time:\n')
     print(time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time())))
 
-
+'''''
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=('Train policy on OpenAI Gym environment '
                                                   'using Proximal Policy Optimizer'))
@@ -395,7 +394,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
     main(**vars(args))
 
-'''''
+
     while episode < num_episodes:
         print('Episode:',episode)
 
@@ -404,4 +403,4 @@ if __name__ == "__main__":
         episode += len(trajectories)
         print('-------------------------------------')
 '''''
-
+main('My3LineDirect-v1', 1000, 0.995, 0.98, 0.003, 200, 'A003-test')
